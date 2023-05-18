@@ -12,7 +12,7 @@ const reactionEmoji = {
 export const ReactionButtons = ({ post }) => {
   // 第一个参数是提交请求的，第二个参数的状态被省略了
   const [addReaction] = useAddReactionMutation()
-
+  //
   const reactionButtons = Object.entries(reactionEmoji).map(([name, emoji]) => {
     return (
       <button
