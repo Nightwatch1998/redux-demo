@@ -1,29 +1,38 @@
-import { createSlice } from '@reduxjs/toolkit'
-import { createAsyncThunk } from '@reduxjs/toolkit'
-import { client } from '../../api/client'
+import { 
+  createSelector,
+  createEntityAdapter
+} from '@reduxjs/toolkit'
+import { apiSlice } from '../api/apiSlice'
 
-const initialState = []
+const usersAdapter = createEntityAdapter()
+const initialState = usersAdapter.getInitialState()
 
-export const fetchUsers = createAsyncThunk('users/fetchUsers',async ()=>{
-  const res = await client.get('/fakeApi/users')
-  return res.data
-})
-
-const usersSlice = createSlice({
-  name: 'users',
-  initialState,
-  reducers: {},
-  extraReducers(builder){
-    builder.addCase(fetchUsers.fulfilled,(state,action)=>{
-      // 第二种方式，直接返回一个结果
-      return action.payload
+export const extendedApiSlice = apiSlice.injectEndpoints({
+  endpoints: builder => ({
+    getUsers: builder.query({
+      query: () => '/users',
+      // 缓存前修改response
+      transformResponse: responseData => {
+        // 返回范式化结构
+        return usersAdapter.setAll(initialState,responseData)
+      }
     })
-  }
+  })
 })
 
-export default usersSlice.reducer
+export const { useGetUsersQuery } = extendedApiSlice
 
-export const selectAllUsers = state => state.users
+export const selectUsersResult = extendedApiSlice.endpoints.getUsers.select()
 
-export const selectUserById = (state, userId) =>
-  state.users.find(user => user.id === userId)
+const selectUsersData = createSelector(
+  selectUsersResult,
+  usersResult => usersResult.data
+)
+// 调用select 会生成一个selector,该selector会返回带参数查询的查询结果对象
+// 要为特定查询参数生成 selector，请调用 `select(theQueryArg)`
+
+export default extendedApiSlice.reducer
+
+// 自动生成selector
+export const { selectAll: selectAllUsers, selectById: selectUserById } =
+  usersAdapter.getSelectors(state => selectUsersData(state) ?? initialState)

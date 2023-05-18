@@ -1,11 +1,19 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { 
+  createSlice, 
+  createAsyncThunk, 
+  createSelector,
+  createEntityAdapter } from '@reduxjs/toolkit'
 import { client } from '../../api/client'
 
-const initialState = {
-  posts: [],
+const postsAdapter = createEntityAdapter({
+  sortComparer: (a, b) => b.date.localeCompare(a.date)
+})
+
+// 返回空的{ids: [], entities: {}} 范式化对象
+const initialState = postsAdapter.getInitialState({
   status: 'idle',
   error: null
-}
+})
 
 // 异步请求的函数
 export const fetchPosts = createAsyncThunk('posts/fetchPosts',async ()=>{
@@ -25,14 +33,14 @@ const postsSlice = createSlice({
     reducers: {
       reactionAdded(state,action){
         const { postId, reaction} = action.payload
-        const existingPost = state.posts.find(post=>post.id===postId)
+        const existingPost = state.entities[postId]
         if(existingPost){
           existingPost.reactions[reaction]++
         }
       },
       postUpdated(state,action){
         const { id, title, content } = action.payload
-        const existingPost = state.find(post => post.id === id)
+        const existingPost = state.entities[id]
         if(existingPost){
           existingPost.title = title
           existingPost.content = content
@@ -48,7 +56,7 @@ const postsSlice = createSlice({
         .addCase(fetchPosts.fulfilled,(state, action)=>{
           // 请求成功
           state.status = 'succeeded'
-          state.posts = state.posts.concat(action.payload)
+          postsAdapter.upsertMany(state,action.payload)
         })
         .addCase(fetchPosts.rejected,(state, action)=>{
           // 请求失败
@@ -57,7 +65,7 @@ const postsSlice = createSlice({
         })
         .addCase(addNewPost.fulfilled,(state,action)=>{
           // 向服务器发送之后，添加到现有的列表中
-          state.posts.push(action.payload)
+          postsAdapter.addOne(state,action.payload)
         })
     }
 })
@@ -65,8 +73,15 @@ const postsSlice = createSlice({
 export const { postAdded, postUpdated, reactionAdded } = postsSlice.actions
 export default postsSlice.reducer
 
-// selectors
-export const selectAllPosts = state => state.posts.posts
-export const selectPostById = (state,postId) => {
-  state.posts.posts.find(post=>post.id===postId)
-}
+// 自动生成selectors
+export const {
+  selectAll: selectAllPosts,
+  selectById: selectPostById,
+  selectIds: selectPostIds
+  // Pass in a selector that returns the posts slice of state
+} = postsAdapter.getSelectors(state => state.posts)
+
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state, userId) => userId],
+  (posts, userId) => posts.filter(post => post.user === userId)
+)

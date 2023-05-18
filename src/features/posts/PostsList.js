@@ -1,14 +1,16 @@
-import React, { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import React, { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import classNames from 'classnames'
 import { Spinner } from '../../components/Spinner'
 import { PostAuthor } from './PostAuthor'
 import { TimeAgo } from './TimeAgo'
 import { ReactionButtons } from './ReactionButtons'
-import { selectAllPosts, fetchPosts } from './postsSlice'
+import { useGetPostsQuery } from '../api/apiSlice'
+
 
 // 单篇文章
-const PostExcerpt = ({ post }) => {
+let PostExcerpt = ({ post }) => {
+  // const post = useSelector(state => selectPostById(state, postId))
   return (
     <article className="post-excerpt" key={post.id}>
       <h3>{post.title}</h3>
@@ -27,36 +29,43 @@ const PostExcerpt = ({ post }) => {
 }
 
 export const PostsList = () => {
-  const dispatch = useDispatch()
-  const posts = useSelector(selectAllPosts)
-  const postStatus = useSelector(state => state.posts.status)
-  const error = useSelector(state=>state.posts.error)
+  const {
+    data: posts = [],
+    isLoading,
+    isFetching,
+    isSuccess,
+    isError,
+    error,
+    refetch
+  } = useGetPostsQuery()
 
-  useEffect(()=>{
-    // 自动获取数据
-    if(postStatus === 'idle'){
-      dispatch(fetchPosts())
-    }
-  },[postStatus,dispatch])
+  // 排序
+  const sortedPosts = useMemo(()=>{
+    const sortedPosts = posts.slice()
+    sortedPosts.sort((a,b)=>b.date.localeCompare(a.date))
+    return sortedPosts
+  },[posts])
 
   let content
-  if(postStatus === 'loading'){
+  if(isLoading){
     content = <Spinner text='Loading...' />
-  }else if(postStatus === 'succeeded'){
+  }else if(isSuccess){
     // Sort posts in reverse chronological order by datetime string
-    const orderedPosts = posts
-      .slice()
-      .sort((a, b) => b.date.localeCompare(a.date))
-    content = orderedPosts.map(post=>(
-      <PostExcerpt key={post.id} post={post}/>
-    ))
-  }else if(postStatus === 'failed'){
-    content = <div>{error}</div>
+    const renderedPosts = sortedPosts.map(post=><PostExcerpt key={post.id} post={post}/>)
+
+    const containerClassname = classNames('posts-container',{
+      disabled: isFetching
+    })
+
+    content = <div className={containerClassname}>{renderedPosts}</div>
+  }else if(isError){
+    content = <div>{error.toString()}</div>
   }
 
   return (
     <section className="posts-list">
       <h2>Posts</h2>
+      <button onClick={refetch}>重新加载帖子</button>
       {content}
     </section>
   )

@@ -1,6 +1,14 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { 
+  createSlice, 
+  createAsyncThunk,
+  createEntityAdapter
+} from '@reduxjs/toolkit'
 
 import { client } from '../../api/client'
+
+const notificationsAdaptor = createEntityAdapter({
+  sortComparer:(a,b)=>b.date.localeCompare(a.date)
+})
 
 export const fetchNotifications = createAsyncThunk(
   'notifications/fetchNotifications',
@@ -17,17 +25,28 @@ export const fetchNotifications = createAsyncThunk(
 
 const notificationsSlice = createSlice({
   name: 'notifications',
-  initialState: [],
-  reducers: {},
+  initialState: notificationsAdaptor.getInitialState(),
+  reducers: {
+    allNotificationsRead(state,action){
+      // 此时数据在state.entities中
+      Object.values(state.entities).forEach(notification => {
+        notification.read = true
+      })
+    }
+  },
   extraReducers: {
     [fetchNotifications.fulfilled]: (state, action) => {
       state.push(...action.payload)
-      // 以最新的优先排序
-      state.sort((a, b) => b.date.localeCompare(a.date))
+      Object.values(state.entities).forEach(notification=>{
+        notification.isNew = !notification.read
+      })
+      notificationsAdaptor.upsertMany(state,action.payload)
     }
   }
 })
+export const { allNotificationsRead } = notificationsSlice.actions
 
 export default notificationsSlice.reducer
 
-export const selectAllNotifications = state => state.notifications
+export const { selectAll: selectAllNotifications } = 
+  notificationsAdaptor.getSelectors(state => state.notifications)
