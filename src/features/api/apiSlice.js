@@ -54,9 +54,24 @@ export const apiSlice = createApi({
         // 这样用户就不能多次做出相同的反应
         body: { reaction }
       }),
-      invalidatesTags: (result, error, arg) => [
-        { type: 'Post', id: arg.postId }
-      ]
+      async onQueryStarted({ postId, reaction }, { dispatch, queryFulfilled }) {
+        // `updateQueryData` 需要请求接口名称和缓存键参数，
+        // 所以它知道要更新哪一块缓存状态
+        const patchResult = dispatch(
+          apiSlice.util.updateQueryData('getPosts', undefined, draft => {
+            // `draft` 是 Immer-wrapped 的，可以像 createSlice 中一样 “mutated”
+            const post = draft.find(post => post.id === postId)
+            if (post) {
+              post.reactions[reaction]++
+            }
+          })
+        )
+        try {
+          await queryFulfilled
+        } catch {
+          patchResult.undo()
+        }
+      }
     })
   })
 })

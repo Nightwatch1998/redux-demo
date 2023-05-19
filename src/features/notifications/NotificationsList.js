@@ -1,31 +1,37 @@
 import React, { useLayoutEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import classNames from 'classnames'
+import classnames from 'classnames'
+
 import { selectAllUsers } from '../users/usersSlice'
-import { 
-  selectAllNotifications,
-  allNotificationsRead
- } from './notificationsSlice'
+
+import {
+  useGetNotificationsQuery,
+  allNotificationsRead,
+  selectMetadataEntities,
+} from './notificationsSlice'
 
 export const NotificationsList = () => {
   const dispatch = useDispatch()
-  const notifications = useSelector(selectAllNotifications)
+  const { data: notifications = [] } = useGetNotificationsQuery()
+  const notificationsMetadata = useSelector(selectMetadataEntities)
   const users = useSelector(selectAllUsers)
 
-  // 第一次渲染之后，浏览器绘制之前
-  useLayoutEffect(()=>{
+  useLayoutEffect(() => {
     dispatch(allNotificationsRead())
   })
 
-  const renderedNotifications = notifications.map(notification => {
+  const renderedNotifications = notifications.map((notification) => {
     const date = parseISO(notification.date)
     const timeAgo = formatDistanceToNow(date)
-    const user = users.find(user => user.id === notification.user) || {
-      name: 'Unknown User'
+    const user = users.find((user) => user.id === notification.user) || {
+      name: 'Unknown User',
     }
-    const notificationClassname = classNames('notification',{
-      new: notification.isNew
+
+    const metadata = notificationsMetadata[notification.id]
+
+    const notificationClassname = classnames('notification', {
+      new: metadata.isNew,
     })
 
     return (

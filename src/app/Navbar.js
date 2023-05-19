@@ -2,25 +2,34 @@ import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 
-import { 
-  fetchNotifications,
-  selectAllNotifications
+import {
+  fetchNotificationsWebsocket,
+  selectNotificationsMetadata,
+  useGetNotificationsQuery,
 } from '../features/notifications/notificationsSlice'
 
 export const Navbar = () => {
   const dispatch = useDispatch()
-  const notifications = useSelector(selectAllNotifications)
-  const numUnreadNotifications = notifications.filter(n=>!n.read).length
+
+  // Trigger initial fetch of notifications and keep the websocket open to receive updates
+  useGetNotificationsQuery()
+
+  const notificationsMetadata = useSelector(selectNotificationsMetadata)
+  const numUnreadNotifications = notificationsMetadata.filter((n) => !n.read)
+    .length
+
   const fetchNewNotifications = () => {
-    dispatch(fetchNotifications())
+    dispatch(fetchNotificationsWebsocket())
   }
 
   let unreadNotificationsBadge
-  if(numUnreadNotifications > 0){
+
+  if (numUnreadNotifications > 0) {
     unreadNotificationsBadge = (
-      <span className='badge'>{numUnreadNotifications}</span>
+      <span className="badge">{numUnreadNotifications}</span>
     )
   }
+
   return (
     <nav>
       <section>
@@ -28,14 +37,15 @@ export const Navbar = () => {
 
         <div className="navContent">
           <div className="navLinks">
-            <Link to="/">文章</Link>
-            <Link to="/users">用户</Link>
+            <Link to="/">Posts</Link>
+            <Link to="/users">Users</Link>
             <Link to="/notifications">
-              通知 {unreadNotificationsBadge}
+              Notifications {unreadNotificationsBadge}
             </Link>
           </div>
+
           <button className="button" onClick={fetchNewNotifications}>
-            刷新通知
+            Refresh Notifications
           </button>
         </div>
       </section>
